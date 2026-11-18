@@ -7,6 +7,16 @@
 
 ## [Unreleased]
 
+### 移除
+
+- **`scripts/setup-agents-link.sh` + `scripts/hooks/post-checkout`**：取消 `AGENTS.md`
+  硬链接同步机制。骨架自带的 `AGENTS.md` 是「某个形态的项目该怎么写」的模板，拿它决定
+  整个工作区的 `AGENTS.md` 属于职责错位；且硬链接会被 `checkout` / `pull` 打断，
+  需要钩子修补，维护成本高于收益。工作区级 `AGENTS.md` 改为独立文件，
+  只写**加载时机与入口路由**，不复述规范正文。
+- **`SKILL.md` 的「维护本仓库：`AGENTS.md` 的单源硬链接」**：随上述改动删除，
+  替换为「两份 `AGENTS.md` 与项目根的关系」，明确模板复制到项目后归该项目所有。
+
 ## [0.2.0] - 2026-11-18
 
 ### 新增
@@ -16,8 +26,6 @@
   多版本 CI 矩阵、构建与装机冒烟校验、精简四份交接文档。
 - **`SKILL.md` 的「第 0 步：先判断项目形态」**：四问决策表，明确何时用服务型骨架、
   何时用库型骨架，并指出两份 `AGENTS.md` 不可混用的原因。
-- **`scripts/setup-agents-link.sh` + `scripts/hooks/post-checkout`**：用 NTFS 硬链接
-  维护 `AGENTS.md` 单源，checkout 后自动重建。内容冲突时先备份再重建，不会丢手改。
 - **`05` 的可判定清单**：把「选哪个骨架」从判断题变成逐条回答题，并列出两种真实发生过的误判。
 
 ### 变更

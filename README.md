@@ -35,7 +35,8 @@
 | 该形态独有的坑 | 分层越界 | `py.typed` 没进 wheel、装完 import 不到、版本两处漂移 |
 
 两份骨架各带一份 `AGENTS.md`，**内容不同，不要混用**：库型那份明确写了「不要读 02 的分层章节」，
-因为分层假设「有请求从外面进来」，而库没有。
+因为分层假设「有请求从外面进来」，而库没有。这两份是**模板**：复制到项目根后归该项目所有，
+骨架里的原件不会被同步覆盖，项目对副本的任何修改也不回写骨架。
 
 ## 安装
 
@@ -88,8 +89,6 @@ python .workbuddy/skills/python-dev-standard/scripts/new_module.py order
 │   ├── check_style.py            风格校验器
 │   ├── check_architecture.py     分层校验器（仅服务型）
 │   ├── new_module.py             业务域脚手架（仅服务型）
-│   ├── setup-agents-link.sh      装配钩子 + 建立 AGENTS.md 硬链接
-│   └── hooks/post-checkout       checkout 后自动重建硬链接
 └── tests/                   # 验证三个 Python 脚本本身
 ```
 

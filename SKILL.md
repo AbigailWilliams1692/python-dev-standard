@@ -176,9 +176,7 @@ python -m build && python -m twine check dist/*
 ├── scripts/                          # 只放需要被执行的代码
 │   ├── check_style.py                # 风格校验器，退出码可入 CI
 │   ├── check_architecture.py         # 分层依赖校验器，仅服务型需要
-│   ├── new_module.py                 # 业务域脚手架，产物零改动过门禁
-│   ├── setup-agents-link.sh          # 装配 post-checkout 钩子并建立 AGENTS.md 硬链接
-│   └── hooks/post-checkout           # checkout 后自动重建硬链接（Windows 专用逻辑）
+│   └── new_module.py                 # 业务域脚手架，产物零改动过门禁
 └── tests/                            # 验证上面三个 Python 脚本本身
 ```
 
@@ -205,22 +203,14 @@ python -m build && python -m twine check dist/*
 
 骨架是范式，不是业务。
 
-## 维护本仓库：`AGENTS.md` 的单源硬链接
+## 两份 `AGENTS.md` 与项目根的关系
 
-本项目工作区根目录的 `AGENTS.md` 与 `assets/project-skeleton/AGENTS.md` 是**同一个 inode**（NTFS 硬链接），
-所以只维护后者一处，前者自动同步。`git checkout` / `pull` 重写文件会断链，由钩子自动修复：
+`assets/project-skeleton/AGENTS.md` 与 `assets/package-skeleton/AGENTS.md` 是**给新项目用的模板**：
+它们属于各自骨架，只描述"这个形态的项目该怎么写"。新建项目时按形态复制一份到该项目根目录，
+之后它由**那个项目**维护——骨架里的原件不随项目改动而变，项目里的副本也不回写骨架。
 
-```bash
-# 每个 clone 执行一次（幂等，可重复执行）
-sh scripts/setup-agents-link.sh
-
-# 手动检查链接是否完好：输出两条路径 = 正常，一条 = 已断
-fsutil hardlink list "AGENTS.md"
-```
-
-钩子只在 `.git/agents-links` 存在时工作，该文件是机器本地配置、不进版本控制。
-其他机器 clone 后不执行 setup 就等于没有钩子，但也不会报错。
-
+因此本技能不维护任何"工作区级 AGENTS.md"，也不提供同步机制：工作区根目录若有 `AGENTS.md`，
+它写的是**本工作区自己的**加载规则与路由，与本技能内的两份模板互不影响、互不覆盖。
 
 ## 快速自检（贴在心里）
 
