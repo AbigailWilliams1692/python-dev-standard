@@ -39,7 +39,7 @@ flowchart TD
 | Domain | ❌ | ❌ | ✅ | ❌ |
 | Infrastructure | ❌ | ❌ | ✅ 实现端口 | ✅ |
 
-`core/` 是共享内核（配置、日志、异常、错误码），四层都可依赖它；它不依赖任何业务模块。
+`core/` 是共享内核（配置、日志、异常、错误码、响应信封、幂等存储、限流器），四层都可依赖它；它不依赖任何业务模块。`Envelope` 之所以放在这里而不是某个域里，是因为每个域都要返回它——放在域内会迫使其他域跨域 import。
 唯一例外是 `main.py`（组合根）：它允许直接 import 具体路由与适配器，这是装配职责。
 
 ## 4. 模块清单
@@ -47,7 +47,7 @@ flowchart TD
 | 模块 | 路径 | 职责 | 对外 API | 依赖 |
 | --- | --- | --- | --- | --- |
 | chat | `backend/app/modules/chat/` | 会话与消息的领域规则、用例、HTTP 契约 | `ChatService`、`ChatSession`、`router` | `core`、`ports` |
-| core | `backend/app/core/` | 配置、日志、异常、错误码、健康检查、追踪 | `Settings`、`AppError`、`configure_logging` | 无 |
+| core | `backend/app/core/` | 配置、日志、异常、错误码、响应信封、幂等与限流、健康检查、追踪 | `Settings`、`AppError`、`Envelope`、`TokenBucketLimiter` | 无 |
 | infrastructure.persistence | `backend/app/infrastructure/persistence/` | 实现 `ChatSessionRepository` | `InMemoryChatSessionRepository` | `modules.chat.ports` |
 | infrastructure.llm | `backend/app/infrastructure/llm/` | 实现 `LlmPort` | `FakeLlmAdapter`、`OpenAiAdapter` | `modules.chat.ports` |
 | 组合根 | `backend/app/container.py`、`main.py`、`dependencies.py` | 装配端口、注册中间件与异常处理器 | `create_app()` | 全部 |
@@ -59,7 +59,7 @@ chat 模块内部文件职责：
 | `domain.py` | Domain | `ChatSession` 聚合根、`ChatMessage` 值对象、领域异常、不变量 |
 | `ports.py` | Application 契约 | `LlmPort`、`ChatSessionRepository`，纯 `Protocol` |
 | `service.py` | Application | 用例编排、归属校验、轮次上限、乐观锁 |
-| `schemas.py` | Interface | Pydantic 请求/响应模型、统一 `Envelope` |
+| `schemas.py` | Interface | Pydantic 请求/响应模型（`Envelope` 已上提到 `core/schemas.py`） |
 | `router.py` | Interface | 四个端点，只做协议转换 |
 
 ## 5. 横切关注点落点
@@ -71,6 +71,9 @@ chat 模块内部文件职责：
 | 脱敏 | `core/logging.py::redact` | 在 handler 出口统一替换凭据、手机号、邮箱 |
 | 异常 | `core/errors.py` | `AppError` 层级，HTTP 状态由业务码 `//100` 推导 |
 | 错误码 | `core/error_codes.py` | `http_status * 100 + 序号`，前端按数字分支 |
+| 响应信封 | `core/schemas.py` | 所有端点共用一个形状，前端只写一个解析器 |
+| 幂等 | `core/idempotency.py` | `IdempotencyStore` 端口 + 内存实现，带 TTL 清理 |
+| 限流 | `core/rate_limit.py` | 令牌桶，支持突发与匀速补充，空闲桶自动回收 |
 | 追踪 | `core/middleware.py` | 生成或透传 `X-Trace-Id`，写入响应头与日志 |
 | 装配 | `container.py` | 唯一知道具体适配器的地方 |
 

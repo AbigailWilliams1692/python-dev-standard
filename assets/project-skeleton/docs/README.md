@@ -16,6 +16,8 @@
 | 发送消息并生成回复 | ✅ 可用 | `POST /api/v1/chat/sessions/{id}/messages` | 默认 fake 模型，可切真实供应商 |
 | 真实模型接入 | 🚧 未验证 | `AI_ASSISTANT_LLM_PROVIDER=openai` | 需供应商密钥，未做真实联调 |
 | 数据持久化 | ⛔ 停用 | — | 当前为内存仓储，重启即丢 |
+| CI 五道门 | ✅ 可用 | `.github/workflows/ci.yaml` | 规范 / 架构 / 格式 / 类型 / 测试 + 文档存在性 |
+| 提交前快检 | ✅ 可用 | `.pre-commit-config.yaml` | 与 CI 同规则，`pre-commit install` 后生效 |
 
 ## 怎么跑起来
 

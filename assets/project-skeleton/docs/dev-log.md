@@ -2,6 +2,22 @@
 
 > 一条记录 = 一个合并的 PR。倒序排列，最新在最上。格式见 `04-documentation.md` 3.7。
 
+## 2026-11-18 · refactor(core): 上提响应信封，补幂等与限流，接入 CI
+
+- **变更**：`Envelope` 从 `modules/chat/schemas.py` 上提到 `core/schemas.py`；
+  新增 `core/idempotency.py`（端口 + 内存实现，带 TTL）与 `core/rate_limit.py`（令牌桶）；
+  新增 6 条测试；新增 `.github/workflows/ci.yaml`（五道门）与 `.pre-commit-config.yaml`。
+- **为什么**：`Envelope` 是所有域共用的响应契约，留在 chat 里会迫使新域跨域 import 或重复定义，
+  两者都违反分层；幂等此前只登记在 tech-debt 里没有可复用实现，重试重复计费是真风险；
+  四道门此前靠人工执行，没有流水线等于没有门禁。
+- **影响面**：`core` 新增 3 个文件、`chat/schemas.py` 删除 1 个类、`chat/router.py` 改 import；
+  测试 20 → 26；对接口路径与响应体无影响（信封形状不变）。
+- **验证**：`check_style.py` 0 告警 / `check_architecture.py` 0 告警 / `ruff` 全过 /
+  `mypy` 27 文件无问题 / `pytest` 26 passed。
+- **文档**：`architecture.md` 的 core 描述、模块表、跨切面表；`tech-debt.md` #2 与 #5 状态更新；
+  本条目。
+- **遗留**：幂等实现未接 HTTP 层（#2 仍开放）；限流器未接入任何端点，需在确定配额后挂到发消息接口。
+
 ## 2026-11-18 · feat(chat): 会话域四层样板
 
 - **变更**：新增 `core`（配置 / 日志 / 异常 / 错误码 / 追踪中间件 / 健康检查）与 `modules/chat`
