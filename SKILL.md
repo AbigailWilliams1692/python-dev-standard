@@ -1,12 +1,39 @@
 ---
 name: python-dev-standard
-version: 0.1.0
-description: 本项目 Python 开发规范的唯一入口。当需要编写、修改、评审任何 .py 文件，新增模块或目录，设计后端分层与接口，做技术选型，或检查代码是否合规时加载。覆盖 banner/分区/docstring/命名等代码风格（PEP 8 + Google Style + 项目自定义），以及模块划分、分层架构、前后端契约、安全与测试等工程规范。关键词：Python、PEP8、代码风格、docstring、banner、命名规范、模块设计、分层架构、高内聚低耦合、Code Review、代码评审、规范检查、交接文档、ADR、架构决策、开发记录、handover。
+version: 0.2.0
+description: 本项目 Python 开发规范的唯一入口。当需要编写、修改、评审任何 .py 文件，新建项目或目录，判断该用服务型还是库型结构，设计后端分层与接口，做技术选型，或检查代码是否合规时加载。覆盖 banner/分区/docstring/命名等代码风格（PEP 8 + Google Style + 项目自定义），以及模块划分、分层架构、前后端契约、安全与测试等工程规范；提供两套可运行骨架（HTTP 服务型 / 纯 Python package 型，后者含 src layout、py.typed、__all__ 公共契约）。关键词：Python、PEP8、代码风格、docstring、banner、命名规范、模块设计、分层架构、高内聚低耦合、Code Review、代码评审、规范检查、交接文档、ADR、架构决策、开发记录、handover、库、package、pip、SDK、CLI、src layout、py.typed、打包发布。
 ---
 
 # Python 开发规范（项目级）
 
 本 Skill 是「AI 助理」项目 Python 代码与架构的**强制规范**。所有交付的 Python 代码必须满足这里的约束，Review 时按此判定。
+
+## 第 0 步：先判断项目形态
+
+同一套代码风格，两套骨架。**选错骨架的代价大于写错任何单个函数**：
+在库里塞 `main.py`，会得到一套没有请求的"分层"，`service.py` 退化成什么都往里塞的巨型类；
+在服务里用 src layout，会得到一个没人 `import`、却要部署的包。
+
+按顺序问四个问题，第一个命中即停：
+
+| # | 判据 | 命中 → |
+| --- | --- | --- |
+| 1 | 有请求从外面进来吗？（HTTP / WebSocket / 队列消费者） | **服务型** |
+| 2 | 会被别的 Python 代码 `import` 吗？ | **库型** |
+| 3 | 只有命令行入口？ | **库型 + `cli.py` 薄壳**（05 第 4 节） |
+| 4 | 库和 API 都要？ | **拆两个包**：库做内核，服务做外壳 |
+
+| 形态 | 骨架 | 常驻指令 | 关键差异 |
+| --- | --- | --- | --- |
+| 服务型 | `assets/project-skeleton/` | 它自带的 `AGENTS.md` | 四层结构、DI 装配、HTTP 契约、`docs/ux.md` |
+| 库型 / CLI | `assets/package-skeleton/` | 它自带的 `AGENTS.md` | `src/` layout、`py.typed`、`__all__` 契约、`CHANGELOG` 必填 |
+| 数据管道 | 库型骨架裁剪（05 第 5 节） | 同上 | 幂等与断点续跑优先于分层 |
+
+判据模糊时看**交付形态**：要跑成常驻进程 → 服务型；要 `pip install` 进别人的环境 → 库型。
+仍然拿不准就问用户，不要猜——猜错要重建整个目录结构。
+
+两套骨架的 `AGENTS.md` 内容不同，**不要混用**：库型那份明确写了「不要读 02 的分层章节」，
+因为分层假设「有请求从外面进来」，而库没有。
 
 ## 何时必须加载
 
@@ -19,8 +46,9 @@ description: 本项目 Python 开发规范的唯一入口。当需要编写、�
 | 写测试、配 CI、提交代码 | `references/03-quality-and-process.md` |
 | 做技术选型 / 架构决策 | `references/02-engineering-design.md` + 写 ADR |
 | 写 / 更新 `docs/` 交接文档、交接给下一个 Agent 或人类 | `references/04-documentation.md` |
-| 判断该用哪套骨架（服务 / 库 / CLI / 数据管道） | `references/05-project-archetypes.md` |
-| 从零搭工程、或不确定某文件该放哪一层 | 直接看 `assets/project-skeleton/` 的目录与代码 |
+| 判断该用哪套骨架（服务 / 库 / CLI / 数据管道） | 见本文「第 0 步」+ `references/05-project-archetypes.md` |
+| 从零搭服务型工程、或不确定某文件该放哪一层 | 直接看 `assets/project-skeleton/` 的目录与代码 |
+| 从零搭库型 / CLI 工程、或不确定 `src` 里怎么分模块 | 直接看 `assets/package-skeleton/` 的目录与代码 |
 | 新增一个业务域 | `scripts/new_module.py` + `references/02` 第 19 节 |
 
 **渐进加载**：先读本文件（已含红线与检查清单），再按上表只读命中的 1–2 份 reference，不要一次性全读。
@@ -52,11 +80,16 @@ description: 本项目 Python 开发规范的唯一入口。当需要编写、�
 - 定位代码该放哪一层、哪个业务域。拿不准时先问，不要猜。
 
 **写代码时**
-- 新建单个文件：复制 `assets/module_template.py`；新建工程或新业务域：对照 `assets/project-skeleton/`。
+- 新建单个文件：复制 `assets/module_template.py`。
+- 新建工程：先按「第 0 步」判断形态——服务型对照 `assets/project-skeleton/`，库型对照 `assets/package-skeleton/`。
+- 新增业务域（**仅服务型**）：用 `scripts/new_module.py` 生成，不要手抄 chat 目录。
 - 每个函数先写 docstring 草案，再写实现——参数漏了立刻能发现。
 - 新增外部依赖前先确认：能否用标准库、是否已停止维护、License 是否兼容。
 
 **交付前（必须全绿）**
+
+服务型：
+
 ```bash
 # 1. 项目自定义规范（banner / 分区 / 命名 / docstring / 类型 / 行宽）
 python .workbuddy/skills/python-dev-standard/scripts/check_style.py backend/
@@ -69,6 +102,24 @@ mypy backend/app
 # 5. 测试
 pytest -q
 ```
+
+库型 / CLI：
+
+```bash
+# 1. 项目自定义规范（同上，扫描 src 与 tests）
+python .workbuddy/skills/python-dev-standard/scripts/check_style.py src tests
+# 2. 格式与 Lint
+ruff format --check . && ruff check .
+# 3. 类型
+mypy
+# 4. 测试
+pytest -q
+# 5. 构建与元数据（库独有：装不上等于没发布）
+python -m build && python -m twine check dist/*
+```
+
+库型**不跑** `check_architecture.py`：它检查的是四层边界，库里没有四层，跑了只会制造假规则。
+库型多出的第 5 步不可省——`py.typed` 没进 wheel、或装完 import 不到，静态检查一个都发现不了。
 逐条对照 `references/03-quality-and-process.md` 第 11 节的「交付前总清单」，
 以及 `references/04-documentation.md` 第 8 节的「交付前自检（文档部分）」。
 
@@ -105,32 +156,70 @@ pytest -q
 │   ├── 04-documentation.md           # 交接文档：docs 地图 / 七类模板 / 更新义务矩阵
 │   └── 05-project-archetypes.md      # 项目原型：服务 / 库 / CLI / 数据管道的骨架选型
 ├── assets/                           # 可复制进项目的产物，不是给技能自己跑的
-│   ├── module_template.py            # 单文件骨架
-│   └── project-skeleton/             # 完整参照工程（可独立跑通五道门）
-│       ├── AGENTS.md                 # 常驻指令入口 → 复制到项目根
-│       ├── pyproject.toml            # ruff / mypy / pytest / 打包配置
-│       ├── .env.example              # 环境变量清单（不含真实值）
-│       ├── .github/workflows/ci.yaml # 五道门流水线
-│       ├── .pre-commit-config.yaml   # 提交前同规则快检
-│       ├── backend/                  # core 地基 + modules/chat 四层范式 + infrastructure 适配器
-│       └── docs/                     # 9 份交接文档实例 + 2 份 ADR
+│   ├── module_template.py            # 单文件骨架，任何形态都适用
+│   ├── project-skeleton/             # 服务型参照工程（五道门全绿）
+│   │   ├── AGENTS.md                 # 服务型常驻指令 → 复制到项目根
+│   │   ├── pyproject.toml            # ruff / mypy / pytest / 打包配置
+│   │   ├── .env.example              # 环境变量清单（不含真实值）
+│   │   ├── .github/workflows/ci.yaml # 五道门流水线
+│   │   ├── .pre-commit-config.yaml   # 提交前同规则快检
+│   │   ├── backend/                  # core 地基 + modules/chat 四层范式 + infrastructure 适配器
+│   │   └── docs/                     # 9 份交接文档实例 + 2 份 ADR
+│   └── package-skeleton/             # 库型 / CLI 参照工程（四道门 + 构建校验全绿）
+│       ├── AGENTS.md                 # 库型常驻指令，红线与服务型不同
+│       ├── pyproject.toml            # src layout / 动态版本 / extras 分组
+│       ├── CHANGELOG.md              # 库必填，服务型可省
+│       ├── src/mylib/                # __init__ 契约 + py.typed + 值对象 + 异常层次
+│       ├── tests/                    # 只通过公开 API 测试
+│       ├── .github/workflows/ci.yaml # 多版本矩阵 + 构建校验 + 装机冒烟
+│       └── docs/                     # 精简四份（无 ux / entities / data-flow）
 ├── scripts/                          # 只放需要被执行的代码
-│   ├── check_style.py                # 风格校验器，31 条规则，退出码可入 CI
-│   ├── check_architecture.py         # 分层依赖校验器，拦截越界 import
-│   └── new_module.py                 # 业务域脚手架，产物零改动过门禁
-└── tests/                            # 验证上面三个脚本本身
+│   ├── check_style.py                # 风格校验器，退出码可入 CI
+│   ├── check_architecture.py         # 分层依赖校验器，仅服务型需要
+│   ├── new_module.py                 # 业务域脚手架，产物零改动过门禁
+│   ├── setup-agents-link.sh          # 装配 post-checkout 钩子并建立 AGENTS.md 硬链接
+│   └── hooks/post-checkout           # checkout 后自动重建硬链接（Windows 专用逻辑）
+└── tests/                            # 验证上面三个 Python 脚本本身
 ```
 
-## `assets/` 里两份参照物的分工
+## `assets/` 里三份参照物的分工
 
 | 产物 | 解决什么问题 | 怎么用 |
 | --- | --- | --- |
 | `module_template.py` | 单个文件怎么写 | 新建 `.py` 时整体复制，替掉 banner 与函数体 |
-| `project-skeleton/` | 整个工程怎么长 | 新项目直接把内容复制到项目根；改造现有项目时按目录对照补缺口 |
+| `project-skeleton/` | **服务型**工程怎么长 | 内容复制到项目根；改造现有项目时按目录对照补缺口 |
+| `package-skeleton/` | **库型 / CLI** 工程怎么长 | 同上，但先读它的 `AGENTS.md`——红线与服务型不同 |
 
-`project-skeleton/` 是**可执行的真工程**，不是示意代码：`cd` 进去后四道门（`check_style.py` / `ruff` / `mypy` / `pytest`）全绿，20 条测试通过。拿不准「文件该放哪一层」时，看它怎么放最省事。
+两份 skeleton 都是**可执行的真工程**，不是示意代码：
 
-**复制骨架后的第一件事**：删掉 `backend/app/modules/chat/` 与对应测试，把 `docs/` 里的 chat 相关内容替换成自己的领域——骨架是范式，不是业务。
+| | `project-skeleton/` | `package-skeleton/` |
+| --- | --- | --- |
+| 门禁 | 五道（含 `check_architecture.py`） | 四道 + `build` + `twine check` |
+| 测试 | 26 条 | 21 条 |
+| 额外验证 | — | wheel 含 `py.typed`、从 wheel 装后能 import |
+
+**复制骨架后的第一件事**：
+
+- 服务型：删掉 `backend/app/modules/chat/` 与对应测试，把 `docs/` 里 chat 相关内容替换成自己的领域。
+- 库型：把 `mylib` 全局替换成包名，删掉 `models.py` / `compat.py` 里的示例业务，重写 `README.md` 与 `CHANGELOG.md`。
+
+骨架是范式，不是业务。
+
+## 维护本仓库：`AGENTS.md` 的单源硬链接
+
+本项目工作区根目录的 `AGENTS.md` 与 `assets/project-skeleton/AGENTS.md` 是**同一个 inode**（NTFS 硬链接），
+所以只维护后者一处，前者自动同步。`git checkout` / `pull` 重写文件会断链，由钩子自动修复：
+
+```bash
+# 每个 clone 执行一次（幂等，可重复执行）
+sh scripts/setup-agents-link.sh
+
+# 手动检查链接是否完好：输出两条路径 = 正常，一条 = 已断
+fsutil hardlink list "AGENTS.md"
+```
+
+钩子只在 `.git/agents-links` 存在时工作，该文件是机器本地配置、不进版本控制。
+其他机器 clone 后不执行 setup 就等于没有钩子，但也不会报错。
 
 
 ## 快速自检（贴在心里）

@@ -86,7 +86,13 @@ PARAM_FIELD_PATTERN: Final[re.Pattern[str]] = re.compile(r":param\s+([^:\n]+):")
 # 模块级小写名字白名单：日志器、FastAPI 路由对象、包导出清单
 # 这三类名字由框架或语言约定固定，改名会破坏生态习惯
 MODULE_NAME_ALLOWLIST: Final[frozenset[str]] = frozenset(
-    {"logger", "router", "__all__"}
+    {
+        "logger",
+        "router",
+        "__all__",
+        # 打包生态固定名，库的版本单一真源必须用它，改名下游就取不到
+        "__version__",
+    }
 )
 SKIP_DIRS: Final[frozenset[str]] = frozenset(
     {
@@ -443,6 +449,8 @@ def check_sections(
     path: Path,
     lines: Sequence[str],
     violations: list[Violation],
+    *,
+    has_import: bool = True,
 ) -> None:
     """
     Validate module and class section titles, their order and their borders.
@@ -450,6 +458,7 @@ def check_sections(
     :param path: Source file being checked.
     :param lines: File content split into lines without terminators.
     :param violations: Collector the findings are appended to.
+    :param has_import: Whether the module contains any import statement.
     :return: ``None``, findings are written into ``violations``.
     """
     # 区块标题定义为「紧跟 80 列分隔线的 Title Case 注释行」
@@ -466,9 +475,10 @@ def check_sections(
         indent = len(line) - len(line.lstrip(" "))
         found.append((index, indent, title))
 
-    # 模块级必须存在 Import Libraries 区块
+    # 模块级必须存在 Import Libraries 区块，但只有真的写了 import 才要求，
+    # 否则一个只放常量的模块被迫留一个空区块，属于噪音而非规范
     module_titles = [title for _, indent, title in found if indent == 0]
-    if "Import Libraries" not in module_titles:
+    if has_import and "Import Libraries" not in module_titles:
         _report(
             violations,
             level="ERROR",
@@ -649,11 +659,16 @@ def check_file(path: Path) -> list[Violation]:
         return violations
     lines = source.splitlines()
 
+    # 只有真的出现 import 语句才强制 Import 区块，纯常量模块不必留空区块
+    has_import = any(
+        re.match(r"^\s*(?:import|from)\s", line) is not None for line in lines
+    )
+
     # 先做纯文本层面的 banner、分隔线、行宽与区块检查
     check_banner(path, lines, violations)
     check_separators(path, lines, violations)
     check_line_length(path, lines, violations)
-    check_sections(path, lines, violations)
+    check_sections(path, lines, violations, has_import=has_import)
 
     # 再做语法树层面的命名、标注与 docstring 检查
     try:

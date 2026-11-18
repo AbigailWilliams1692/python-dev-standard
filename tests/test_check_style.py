@@ -169,6 +169,71 @@ def test_star_import_is_rejected(check_style: STYLE_RUNNER, valid_module: str) -
     assert "IMPORT_STAR" in result.stdout
 
 
+def test_constant_only_module_needs_no_import_section(
+    check_style: STYLE_RUNNER, valid_module: str
+) -> None:
+    """
+    Accept a module with no imports and therefore no Import section.
+
+    :param check_style: Runner writing the sample and invoking the checker.
+    :param valid_module: Baseline source used by every case.
+    :return: ``None``, assertions raise on mismatch.
+    """
+    # 纯常量模块（如 _version.py）不该被迫留一个空分区，那是噪音不是规范
+    banner = "".join(valid_module.splitlines(keepends=True)[:8])
+    constants_only = (
+        f"{banner}\n{SEPARATOR}\n# Module Constants\n{SEPARATOR}\nMAX_ITEMS: int = 10\n"
+    )
+    # 先证明样例真的不含 import，否则这条用例什么都没验证
+    assert "from __future__" not in constants_only
+    result = check_style(constants_only)
+    assert "SECTION_MISSING" not in result.stdout
+    assert result.returncode == 0, result.stdout
+
+
+def test_import_without_import_section_is_rejected(
+    check_style: STYLE_RUNNER, valid_module: str
+) -> None:
+    """
+    Keep rejecting a module that imports code but declares no section.
+
+    :param check_style: Runner writing the sample and invoking the checker.
+    :param valid_module: Baseline source used by every case.
+    :return: ``None``, assertions raise on mismatch.
+    """
+    # 放宽只针对「没有 import」的文件，删分区标题但保留 import 仍须报错
+    header = f"{SEPARATOR}\n# Import Libraries\n{SEPARATOR}\n"
+    broken = valid_module.replace(header, "")
+    # 证明替换真的发生，且 import 语句仍在，否则不是这条规则在生效
+    assert "# Import Libraries" not in broken
+    assert "from __future__ import annotations" in broken
+    result = check_style(broken)
+    assert result.returncode == 1
+    assert "SECTION_MISSING" in result.stdout
+
+
+def test_dunder_version_is_an_allowed_module_name(
+    check_style: STYLE_RUNNER, valid_module: str
+) -> None:
+    """
+    Allow ``__version__`` although it violates the constant naming rule.
+
+    :param check_style: Runner writing the sample and invoking the checker.
+    :param valid_module: Baseline source used by every case.
+    :return: ``None``, assertions raise on mismatch.
+    """
+    # 版本单一真源在打包生态里固定叫 __version__，改名下游就取不到
+    broken = valid_module.replace(
+        "LIMIT: int = 10",
+        'LIMIT: int = 10\n__version__ = "0.1.0"',
+    )
+    # 证明样例真的带上了 __version__，否则用例会在原样通过的情况下空转
+    assert '__version__ = "0.1.0"' in broken
+    result = check_style(broken)
+    assert "MODULE_VAR_NAME" not in result.stdout
+    assert result.returncode == 0, result.stdout
+
+
 def test_pinyin_name_warns_without_failing(
     check_style: STYLE_RUNNER, valid_module: str
 ) -> None:

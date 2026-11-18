@@ -7,6 +7,30 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-18
+
+### 新增
+
+- **`assets/package-skeleton/`**：库型 / CLI 参照工程。`src/` layout、`py.typed`、
+  `__all__` 公共契约、版本单一真源、无 HTTP 依赖的异常层次、21 条测试、
+  多版本 CI 矩阵、构建与装机冒烟校验、精简四份交接文档。
+- **`SKILL.md` 的「第 0 步：先判断项目形态」**：四问决策表，明确何时用服务型骨架、
+  何时用库型骨架，并指出两份 `AGENTS.md` 不可混用的原因。
+- **`scripts/setup-agents-link.sh` + `scripts/hooks/post-checkout`**：用 NTFS 硬链接
+  维护 `AGENTS.md` 单源，checkout 后自动重建。内容冲突时先备份再重建，不会丢手改。
+- **`05` 的可判定清单**：把「选哪个骨架」从判断题变成逐条回答题，并列出两种真实发生过的误判。
+
+### 变更
+
+- `check_style.py`：模块无 import 语句时不再强制要求 `Import Libraries` 分区。
+  纯常量模块（如 `_version.py`）被迫留空分区属于噪音，不是规范。
+  有 import 却缺分区仍然报 `SECTION_MISSING`。
+- `check_style.py`：`__version__` 加入模块级名字白名单。它是打包生态的固定名，
+  按 `UPPER_SNAKE_CASE` 要求改名会让下游取不到版本。
+- `tests/` 由 23 条增至 26 条，覆盖上述两条规则变更，并加入防假通过断言。
+- `05-project-archetypes.md`：库型由「需手工裁剪」改为「有现成骨架」，
+  保留十步裁剪清单供改造已有仓库时使用。
+
 ## [0.1.0] - 2026-11-18
 
 首个可用版本。

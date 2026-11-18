@@ -13,6 +13,29 @@
 | 新增模块靠手抄旧模块，每次都漏东西 | `new_module.py` 一条命令生成 8 个文件并自动接线，生成物零改动就过门禁 |
 | 交接时没人知道为什么这么设计 | `04-documentation.md` 的七类模板 + **更新义务矩阵** + ADR |
 | 文档写了没人更新，半年后全是假的 | 文档红线进 `AGENTS.md`，改结构却不动 `docs/` 视为不合格 |
+| 把库硬套成服务，或把服务削成库 | 两套骨架 + 「第 0 步」可判定清单，形态选错要重建整个目录 |
+
+## 两套骨架：先判断形态
+
+同一套代码风格，两种工程结构。**选错骨架的代价大于写错任何单个函数。**
+
+| 判据（按顺序问，第一个「是」即停） | 形态 | 骨架 |
+| --- | --- | --- |
+| 有请求从外面进来？（HTTP / WebSocket / 队列消费者） | 服务型 | `assets/project-skeleton/` |
+| 会被别的 Python 代码 `import`？ | 库型 | `assets/package-skeleton/` |
+| 只有命令行入口？ | CLI | `package-skeleton/` + `cli.py` 薄壳 |
+| 都不像，一次运行读完就退出？ | 数据管道 | 裁剪 `package-skeleton/` |
+
+| | 服务型骨架 | 库型骨架 |
+| --- | --- | --- |
+| 结构 | 四层 `backend/app/{core,modules,infrastructure}` | `src/<package>/` 平铺 |
+| 契约 | `schemas.py` + 路由 | `__init__.py` 的 `__all__` |
+| 门禁 | 5 道（含分层校验） | 4 道 + `build` + `twine check` |
+| 测试 | 26 条 | 21 条 |
+| 该形态独有的坑 | 分层越界 | `py.typed` 没进 wheel、装完 import 不到、版本两处漂移 |
+
+两份骨架各带一份 `AGENTS.md`，**内容不同，不要混用**：库型那份明确写了「不要读 02 的分层章节」，
+因为分层假设「有请求从外面进来」，而库没有。
 
 ## 安装
 
@@ -26,7 +49,10 @@ git submodule add <本仓库地址> .workbuddy/skills/python-dev-standard
 cp -r python-dev-standard <你的项目>/.workbuddy/skills/
 ```
 
-然后把 `assets/project-skeleton/AGENTS.md` 复制到项目根目录——它是 Agent 的常驻入口。
+然后把**对应形态**骨架的 `AGENTS.md` 复制到项目根目录——它是 Agent 的常驻入口：
+
+- 服务型 → `assets/project-skeleton/AGENTS.md`
+- 库型 / CLI → `assets/package-skeleton/AGENTS.md`
 
 ## 三条命令
 
@@ -55,21 +81,26 @@ python .workbuddy/skills/python-dev-standard/scripts/new_module.py order
 │   ├── 04-documentation.md       交接文档地图 / 七类模板 / 更新义务矩阵
 │   └── 05-project-archetypes.md  服务 / 库 / CLI / 数据管道的骨架选型与裁剪
 ├── assets/                  # 会被复制进项目的产物
-│   ├── module_template.py        单文件骨架
-│   └── project-skeleton/         完整参照工程，五道门全绿的样板
+│   ├── module_template.py        单文件骨架，任何形态都适用
+│   ├── project-skeleton/         服务型参照工程，五道门全绿
+│   └── package-skeleton/         库型 / CLI 参照工程，四道门 + 构建校验全绿
 ├── scripts/                 # 只放要执行的代码
-│   ├── check_style.py
-│   ├── check_architecture.py
-│   └── new_module.py
-└── tests/                   # 验证这三个脚本本身
+│   ├── check_style.py            风格校验器
+│   ├── check_architecture.py     分层校验器（仅服务型）
+│   ├── new_module.py             业务域脚手架（仅服务型）
+│   ├── setup-agents-link.sh      装配钩子 + 建立 AGENTS.md 硬链接
+│   └── hooks/post-checkout       checkout 后自动重建硬链接
+└── tests/                   # 验证三个 Python 脚本本身
 ```
 
 ## 适用范围
 
-`project-skeleton/` 面向**有 HTTP 接口的服务型项目**。要做纯 Python 库、CLI 工具或数据管道，
-四层结构与 DI 装配层并不适用——差异与裁剪清单见 `references/05-project-archetypes.md`。
+- **服务型**（有 HTTP 接口）：`project-skeleton/` 直接可用。
+- **库型 / CLI**（被 `import`，或只有命令行入口）：`package-skeleton/` 直接可用。
+- **数据管道**：裁剪 `package-skeleton/`，核心质量属性是幂等与断点续跑，不是分层。
 
 代码风格（01）与质量流程（03）与项目类型无关，任何 Python 项目都适用。
+完整判据、复用矩阵与裁剪步骤见 `references/05-project-archetypes.md`。
 
 ## 自检
 
@@ -79,10 +110,16 @@ python .workbuddy/skills/python-dev-standard/scripts/new_module.py order
 python scripts/check_style.py scripts/ tests/
 python scripts/check_architecture.py assets/project-skeleton/backend
 pytest tests/ -q
+
+# 两份骨架各自的全量门禁
+cd assets/project-skeleton && python ../../scripts/check_style.py backend
+cd assets/package-skeleton && python ../../scripts/check_style.py src tests
 ```
 
 - 三个脚本自身通过 `check_style.py`（0 ERROR / 0 WARN）。
-- `assets/project-skeleton/` 通过 `check_style` / `check_architecture` / `ruff` / `mypy` / `pytest`。
+- `assets/project-skeleton/` 通过 `check_style` / `check_architecture` / `ruff` / `mypy` / `pytest`（26 条）。
+- `assets/package-skeleton/` 通过 `check_style` / `ruff` / `mypy` / `pytest`（21 条）/ `build` / `twine check`，
+  且 wheel 含 `py.typed`、从 wheel 安装后可正常 import。
 - `tests/` 覆盖两个检查器的每条规则（正样本 + 反样本），防止规则被改坏后静默失效。
 
 ## 版本

@@ -1,0 +1,11 @@
+# 统一 LF：Windows 提交的 CRLF 会让 shell 脚本在 CI 里报 "bad interpreter"
+* text=auto eol=lf
+
+# 二进制文件不做换行转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.whl binary
+*.tar.gz binary
