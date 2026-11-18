@@ -1,0 +1,21 @@
+{
+  "name": "python-dev-standard",
+  "version": "0.1.0",
+  "description": "可执行的 Python 工程规范：80 列 banner 与分区风格、四层架构、AST 风格与分层校验器、业务域脚手架、交接文档模板。适用于多 Agent 协作的 Vibe Coding 项目。",
+  "license": "MIT",
+  "author": {
+    "name": "python-dev-standard contributors"
+  },
+  "keywords": [
+    "python",
+    "pep8",
+    "code-style",
+    "architecture",
+    "layering",
+    "fastapi",
+    "pytest",
+    "code-review",
+    "scaffold",
+    "documentation"
+  ]
+}

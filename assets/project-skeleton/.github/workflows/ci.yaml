@@ -1,0 +1,76 @@
+name: CI
+
+# 四道门：项目规范 -> 格式与 Lint -> 类型 -> 测试
+# 任何一道失败即阻断合并，与 AGENTS.md 第 3 节「交付前必跑」逐条对应
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: quality / py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 下限对齐 pyproject 的 requires-python，上限取当前稳定版
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 技能以 submodule 形式挂在 .workbuddy/skills/ 下
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Gate 1 - project style
+        run: |
+          SKILL=.workbuddy/skills/python-dev-standard/scripts/check_style.py
+          if [ -f "$SKILL" ]; then
+            python "$SKILL" backend/
+          else
+            echo "::warning::python-dev-standard skill 未 checkout，规范门已跳过"
+          fi
+
+      - name: Gate 2 - format and lint
+        run: |
+          ruff format --check .
+          ruff check .
+
+      - name: Gate 3 - types
+        run: mypy
+
+      - name: Gate 4 - tests
+        run: pytest -q
+
+      - name: Gate 5 - docs presence
+        # 文档门禁没有脚本可判定，这里只做最低限度存在性检查
+        run: |
+          for f in docs/README.md docs/architecture.md docs/dev-log.md docs/tech-debt.md; do
+            if [ ! -f "$f" ]; then
+              echo "::error::交接文档缺失：$f"
+              exit 1
+            fi
+          done
+          echo "交接文档齐备"

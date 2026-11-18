@@ -1,0 +1,27 @@
+# 本文件只服务于技能自身的开发与校验，技能本身不是可安装的 Python 包。
+# 被复制进项目的工程骨架带着自己的 pyproject.toml，位于 assets/project-skeleton/。
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+# 骨架有自己的配置与 CI，在它自己的目录里跑，这里不重复扫描
+extend-exclude = ["assets/project-skeleton"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RET", "ANN", "D", "S"]
+# D100 / D104: banner 承担模块说明，包同样如此
+# D200: docstring 首行固定只有三引号
+# D203 / D212: 摘要从第二行开始是刻意设计
+# ANN401: Any 的使用由 check_style.py 审查
+ignore = ["D100", "D104", "D200", "D203", "D212", "ANN401"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]

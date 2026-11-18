@@ -1,0 +1,34 @@
+# 提交前门禁：与 CI 同一套规则，但反馈更快（秒级而非分钟级）
+# 安装：pip install pre-commit && pre-commit install
+# 全量跑一遍：pre-commit run --all-files
+
+default_install_hook_types: [pre-commit]
+fail_fast: false
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # 版本需与 pyproject 中 ruff 的下限保持同代，升级时两处一起改
+    rev: v0.5.7
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: check-style
+        name: project style (check_style.py)
+        # 规范器接受目录参数，故关闭文件名注入，避免只检查改动文件导致漏判
+        entry: python .workbuddy/skills/python-dev-standard/scripts/check_style.py backend/
+        language: system
+        files: ^backend/.*\.py$
+        pass_filenames: false
+
+      - id: check-docs
+        name: docs touched when structure changes
+        # 改结构/接口却不动 docs/ 时给出提醒，不阻断（人工判断优先）
+        entry: python -c "import sys; print('提醒：结构或接口变更请同步 docs/ 并新增 dev-log 条目'); sys.exit(0)"
+        language: system
+        files: ^backend/app/(modules|core|infrastructure)/.*\.py$
+        pass_filenames: false
+        verbose: true
